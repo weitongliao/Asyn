@@ -22,8 +22,8 @@ async def handle_client(websocket, path):
         connected_clients.remove(websocket)
 
 async def main():
-    server = await websockets.serve(handle_client, "35.215.165.210", 12345)
-    print("Signaling server started at ws://35.215.165.210:12345")
+    server = await websockets.serve(handle_client, "0.0.0.0", 12345) # 35.215.165.210
+    print("Signaling server started at ws://0.0.0.0:12345")
     await server.wait_closed()
 
 # if __name__ == "__main__":
