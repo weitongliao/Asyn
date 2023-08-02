@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="e0ca2553-8281-44e3-b7ac-194106f1c273" name="35.215.165.210">
+        <fileTransfer rootFolder="/home/weitong.liao" accessType="SFTP" host="35.215.165.210" port="22" sshConfigId="26bfa1e5-7e6d-47ea-ab4a-317c5056b085" sshConfig="weitong.liao@35.215.165.210:22 agent" authAgent="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
