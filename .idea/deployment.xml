@@ -40,7 +40,7 @@
       <paths name="weitong.liao@35.215.165.210:22 agent">
         <serverdata>
           <mappings>
-            <mapping deploy="/tmp/pycharm_project_76" local="$PROJECT_DIR$" />
+            <mapping deploy="/home/weitong.liao" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
