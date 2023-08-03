@@ -91,7 +91,7 @@ async def run_offer(pc, signaling):
 
     # send offer
     await pc.setLocalDescription(await pc.createOffer())
-    print(pc.localDescription)
+    print(str(pc.localDescription))
     send_sdp_to_server(pc.localDescriptio)
     # await signaling.send(pc.localDescription)
 
