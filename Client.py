@@ -1,24 +1,141 @@
+import argparse
 import asyncio
-import websockets
+import logging
+import socket
+import time
 
-async def send_sdp_to_server():
-    uri = "ws://35.215.165.210:12345"
-    async with websockets.connect(uri) as websocket:
-        client_id = "client_a"
-        await websocket.send(client_id)
+from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
+from aiortc.contrib.signaling import BYE, add_signaling_arguments, create_signaling
 
-        # 假设客户端 A 有一个本地的 SDP
-        local_sdp = "..."  # 从本地获取 SDP
-        print(f"Sending SDP to Signaling Server: {local_sdp}")
-        await websocket.send(local_sdp)
 
-        # 等待接收来自客户端 B 的 SDP
-        remote_sdp = await websocket.recv()
-        print(f"Received SDP from Signaling Server: {remote_sdp}")
+def channel_log(channel, t, message):
+    print("channel(%s) %s %s" % (channel.label, t, message))
 
-        # 在这里，客户端 A 和客户端 B 均具有了对方的 SDP，可以使用 asyncio 建立 P2P 连接
-        # 在实际应用中，需要使用具体的 WebRTC 库，例如 aiortc，来完成 P2P 连接的建立和数据交换
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(send_sdp_to_server())
-loop.close()
+def channel_send(channel, message):
+    channel_log(channel, ">", message)
+    channel.send(message)
+
+
+async def consume_signaling(pc, signaling):
+    while True:
+        obj = await signaling.receive()
+
+        if isinstance(obj, RTCSessionDescription):
+            await pc.setRemoteDescription(obj)
+
+            if obj.type == "offer":
+                # send answer
+                await pc.setLocalDescription(await pc.createAnswer())
+                await signaling.send(pc.localDescription)
+        elif isinstance(obj, RTCIceCandidate):
+            await pc.addIceCandidate(obj)
+        elif obj is BYE:
+            print("Exiting")
+            break
+
+
+time_start = None
+
+
+def current_stamp():
+    global time_start
+
+    if time_start is None:
+        time_start = time.time()
+        return 0
+    else:
+        return int((time.time() - time_start) * 1000000)
+
+
+async def run_answer(pc, signaling):
+    await signaling.connect()
+
+    @pc.on("datachannel")
+    def on_datachannel(channel):
+        channel_log(channel, "-", "created by remote party")
+
+        @channel.on("message")
+        def on_message(message):
+            channel_log(channel, "<", message)
+
+            if isinstance(message, str) and message.startswith("ping"):
+                # reply
+                channel_send(channel, "pong" + message[4:])
+
+    await consume_signaling(pc, signaling)
+
+
+async def run_offer(pc, signaling):
+    await signaling.connect()
+
+    channel = pc.createDataChannel("chat")
+    channel_log(channel, "-", "created by local party")
+
+    async def send_pings():
+        while True:
+            channel_send(channel, "ping %d" % current_stamp())
+            await asyncio.sleep(1)
+
+    @channel.on("open")
+    def on_open():
+        asyncio.ensure_future(send_pings())
+
+    @channel.on("message")
+    def on_message(message):
+        channel_log(channel, "<", message)
+
+        if isinstance(message, str) and message.startswith("pong"):
+            elapsed_ms = (current_stamp() - int(message[5:])) / 1000
+            print(" RTT %.2f ms" % elapsed_ms)
+
+    # send offer
+    await pc.setLocalDescription(await pc.createOffer())
+    print(pc.localDescription)
+    send_sdp_to_server(pc.localDescriptio)
+    # await signaling.send(pc.localDescription)
+
+    await consume_signaling(pc, signaling)
+
+
+def send_sdp_to_server(data_to_send):
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect(("35.215.165.210", 12345))
+
+    # data_to_send = "Hello, server! This is my data."
+
+    client_socket.send(data_to_send.encode("utf-8"))
+    print("sent")
+    received_data = client_socket.recv(1024).decode("utf-8")
+
+    print("Received response from server:", received_data)
+
+    client_socket.close()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Data channels ping/pong")
+    parser.add_argument("role", choices=["offer", "answer"])
+    parser.add_argument("--verbose", "-v", action="count")
+    add_signaling_arguments(parser)
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
+    signaling = create_signaling(args)
+    pc = RTCPeerConnection()
+    if args.role == "offer":
+        coro = run_offer(pc, signaling)
+    else:
+        coro = run_answer(pc, signaling)
+
+    # run event loop
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(coro)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        loop.run_until_complete(pc.close())
+        loop.run_until_complete(signaling.close())

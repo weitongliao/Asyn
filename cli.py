@@ -90,7 +90,8 @@ async def run_offer(pc, signaling):
 
     # send offer
     await pc.setLocalDescription(await pc.createOffer())
-    await signaling.send(pc.localDescription)
+    # print(pc.localDescription)
+    # await signaling.send(pc.localDescription)
 
     await consume_signaling(pc, signaling)
 
