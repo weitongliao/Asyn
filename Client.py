@@ -5,7 +5,7 @@ import socket
 import time
 
 from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
-from aiortc.contrib.signaling import BYE, add_signaling_arguments, create_signaling
+from aiortc.contrib.signaling import BYE, add_signaling_arguments, create_signaling, object_to_string
 
 
 def channel_log(channel, t, message):
@@ -91,9 +91,9 @@ async def run_offer(pc, signaling):
 
     # send offer
     await pc.setLocalDescription(await pc.createOffer())
-    print(str(pc.localDescription))
-    send_sdp_to_server(pc.localDescriptio)
-    # await signaling.send(pc.localDescription)
+    # print(str(pc.localDescription))
+    send_sdp_to_server(object_to_string(pc.localDescription))
+    await signaling.send(pc.localDescription)
 
     await consume_signaling(pc, signaling)
 
@@ -114,7 +114,7 @@ def send_sdp_to_server(data_to_send):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Data channels ping/pong")
-    parser.add_argument("role", choices=["offer", "answer"])
+    # parser.add_argument("role", choices=["offer", "answer"], default="offer")
     parser.add_argument("--verbose", "-v", action="count")
     add_signaling_arguments(parser)
 
@@ -125,11 +125,11 @@ if __name__ == "__main__":
 
     signaling = create_signaling(args)
     pc = RTCPeerConnection()
-    if args.role == "offer":
-        coro = run_offer(pc, signaling)
-    else:
-        coro = run_answer(pc, signaling)
-
+    # if args.role == "offer":
+    #     coro = run_offer(pc, signaling)
+    # else:
+    #     coro = run_answer(pc, signaling)
+    coro = run_offer(pc, signaling)
     # run event loop
     loop = asyncio.get_event_loop()
     try:

@@ -22,7 +22,7 @@ def main():
         data = client_socket.recv(1024).decode("utf-8")
         clients[client_id] = data
 
-        print(clients)
+        print("id", client_id)
 
         print(f"Received data from {client_id}: {data}")
 
